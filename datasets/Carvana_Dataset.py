@@ -207,7 +207,31 @@ class VOCDataLoader():
         self.valid_iterations = (len(val_set) + self.args.batch_size) // self.args.batch_size
 
 class Carvana_Dataset(data.Dataset):
-    pass
+    def __init__(self,
+                 datapath='../carvana/',
+                 base_size = 513,
+                 crop_size = 513,
+                 use_crop = True,
+                 use_hq = False,
+                 ):
+        '''
+
+        :param datapath: the car
+        :param base_size:
+        :param crop_size:
+        :param use_crop:
+        '''
+        self.base_size = base_size
+        self.crop_size = crop_size
+        self.use_crop = use_crop
+        self.use_hq = use_hq
+
+        self.image_filepath = os.path.join(datapath,'images')
+        self.mask_filepath = os.path.join(datapath,'images_mask')
+        self.image_hq_filepath = os.path.join(datapath,'images_hq')
+
+
+
 
 class CarvanaDataLoader():
     pass
