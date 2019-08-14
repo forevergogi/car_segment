@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
 # import torchvision
-from graphs.models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+from models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 
 import sys
 sys.path.append(os.path.abspath('..'))

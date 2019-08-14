@@ -16,80 +16,57 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as ttransforms
 
-
-
-class Voc_Dataset(data.Dataset):
+class Carvana_Dataset(data.Dataset):
     def __init__(self,
-                 root_path='/data/linhua/VOCdevkit',
-                 dataset='voc2012_aug',
-                 base_size=513,
-                 crop_size=513,
-                 is_training=True):
-        """
+                 datapath='../carvana_data/',
+                 base_size = 513,
+                 crop_size = 513,
+                 use_crop = True,
+                 use_hq = False,
+                 is_training = True
+                 ):
+        '''
 
-        :param root_path:
-        :param dataset:
+        :param datapath: the car
         :param base_size:
-        :param is_trainging:
-        :param transforms:
-        """
-
-        self.dataset = dataset
-        self.is_training = is_training
+        :param crop_size:
+        :param use_crop:
+        '''
         self.base_size = base_size
         self.crop_size = crop_size
+        self.use_crop = use_crop
+        self.use_hq = use_hq
 
-        if self.dataset == 'voc2007':
-            self.data_path = os.path.join(root_path, "VOC2007")
-            if is_training:
-                item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/trainval.txt")
-            else:
-                item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/test.txt")
+        self.image_filepath = os.path.join(datapath,'images')
+        self.mask_filepath = os.path.join(datapath,'images_mask')
+        self.image_hq_filepath = os.path.join(datapath,'images_hq')
 
-        elif self.dataset == 'voc2012':
-            self.data_path = os.path.join(root_path, "VOC2012")
-            if is_training:
-                item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/train.txt")
-            else:
-                item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/val.txt")
-
-        elif self.dataset == 'voc2012_aug':
-            self.data_path = os.path.join(root_path, "VOC2012")
-            if is_training:
-                # item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/train_aug.txt")
-                item_list_filepath = os.path.join(self.data_path,"train_aug.txt")
-            else:
-                # item_list_filepath = os.path.join(self.data_path, "ImageSets/Segmentation/val_aug.txt")
-                item_list_filepath = os.path.join(self.data_path, "val_aug.txt")
+        if is_training:
+            item_list_filepath = os.path.join(self.data_path,'train_imgs.txt')
         else:
-            raise Warning("dataset must be voc2007 or voc2012 or voc2012_aug")
+            item_list_filepath = os.path.join(self.data_path,'test_imgs.txt')
 
-        self.image_filepath = os.path.join(self.data_path, "JPEGImages")
-
-        self.gt_filepath = os.path.join(self.data_path, "SegmentationClassAug")
-
-
-        self.items = [id.strip() for id in open(item_list_filepath)]
-        self.classes = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
-                        'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train',
-                        'tvmonitor']
-
+        with open(item_list_filepath,'r') as reader:
+            lines = reader.readlines()
+            self.items = [id.strip().replace('\n') for id in lines]
 
     def __getitem__(self, item):
         id = self.items[item]
+        mask_image_path = os.path.join(self.mask_filepath,'{}.gif'.format(id))
+        mask_image = Image.open(mask_image_path)
 
-        gt_image_path = os.path.join(self.gt_filepath, "{}.png".format(id))
+        if self.use_hq:
+            gt_image_path = os.path.join(self.image_hq_filepath,'{}.jpg'.format(id))
+        else:
+            gt_image_path = os.path.join(self.image_filepath,'{}.jpg'.format(id))
         gt_image = Image.open(gt_image_path)
 
-        image_path = os.path.join(self.image_filepath, "{}.jpg".format(id))
-        image = Image.open(image_path).convert("RGB")
-
         if self.is_training:
-            image, gt_image = self._train_sync_transform(image, gt_image)
+            image, gt_image = self._train_sync_transform(mask_image, gt_image)
         else:
-            image, gt_image = self._val_sync_transform(image, gt_image)
+            image, gt_image = self._val_sync_transform(mask_image, gt_image)
 
-        return image, gt_image, id
+        return mask_image,gt_image,id
 
     def _train_sync_transform(self, img, mask):
         '''
@@ -170,25 +147,26 @@ class Voc_Dataset(data.Dataset):
 
         return target
 
-
-
-
-    def __len__(self):
-        return len(self.items)
-
-class VOCDataLoader():
-    def __init__(self, args):
+class CarvanaDataLoader():
+    def __init__(self,args):
 
         self.args = args
 
-        train_set = Voc_Dataset(dataset=self.args.dataset,
-                                base_size=self.args.base_size,
-                                crop_size=self.args.crop_size,
-                                is_training=True)
-        val_set = Voc_Dataset(dataset=self.args.dataset,
-                              base_size=self.args.base_size,
-                              crop_size=self.args.crop_size,
-                              is_training=False)
+        train_set = Carvana_Dataset(
+            base_size=self.args.base_size,
+            crop_size=self.args.crop_size,
+            use_crop=self.args.use_crop,
+            use_hq=self.args.use_hq,
+            is_training=True
+        )
+
+        test_set = Carvana_Dataset(
+            base_size=self.args.base_size,
+            crop_size=self.args.crop_size,
+            use_crop=self.args.use_crop,
+            use_hq=self.args.use_hq,
+            is_training=False
+        )
 
         self.train_loader = data.DataLoader(train_set,
                                             batch_size=self.args.batch_size,
@@ -196,42 +174,11 @@ class VOCDataLoader():
                                             num_workers=self.args.data_loader_workers,
                                             pin_memory=self.args.pin_memory,
                                             drop_last=True)
-        self.valid_loader = data.DataLoader(val_set,
+        self.valid_loader = data.DataLoader(test_set,
                                             batch_size=self.args.batch_size,
                                             shuffle=False,
                                             num_workers=self.args.data_loader_workers,
                                             pin_memory=self.args.pin_memory,
                                             drop_last=True)
-
         self.train_iterations = (len(train_set) + self.args.batch_size) // self.args.batch_size
-        self.valid_iterations = (len(val_set) + self.args.batch_size) // self.args.batch_size
-
-class Carvana_Dataset(data.Dataset):
-    def __init__(self,
-                 datapath='../carvana/',
-                 base_size = 513,
-                 crop_size = 513,
-                 use_crop = True,
-                 use_hq = False,
-                 ):
-        '''
-
-        :param datapath: the car
-        :param base_size:
-        :param crop_size:
-        :param use_crop:
-        '''
-        self.base_size = base_size
-        self.crop_size = crop_size
-        self.use_crop = use_crop
-        self.use_hq = use_hq
-
-        self.image_filepath = os.path.join(datapath,'images')
-        self.mask_filepath = os.path.join(datapath,'images_mask')
-        self.image_hq_filepath = os.path.join(datapath,'images_hq')
-
-
-
-
-class CarvanaDataLoader():
-    pass
+        self.test_iterations = (len(test_set) + self.args.batch_size) // self.args.batch_size

@@ -10,13 +10,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
-from graphs.models.ResNet101 import resnet101
-from graphs.models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+from models.ResNet101 import resnet101
+from models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 
 import sys
 sys.path.append(os.path.abspath('..'))
 
-from graphs.models.encoder import Encoder
+from models.encoder import Encoder
 
 
 class Decoder(nn.Module):

@@ -269,6 +269,7 @@ class Xception(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
         #-----------------------------
+
 if __name__ == '__main__':
     model = Xception(output_stride=16, pretrained=False)
     # print(model.state_dict)
