@@ -19,11 +19,11 @@ from tensorboardX import SummaryWriter
 
 import sys
 sys.path.append(os.path.abspath('..'))
-from graphs.models.sync_batchnorm.replicate import patch_replication_callback
+from models.sync_batchnorm.replicate import patch_replication_callback
 from utils.data_utils import calculate_weigths_labels
 from utils.eval import Eval
-from graphs.models.decoder import DeepLab
-from datasets.Voc_Dataset import VOCDataLoader
+from models.decoder import DeepLab
+from datasets.Carvana_Dataset import CarvanaDataLoader
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -95,7 +95,7 @@ class Trainer():
             # nesterov=self.args.nesterov
         )
         # dataloader
-        self.dataloader = VOCDataLoader(self.args)
+        self.dataloader = CarvanaDataLoader(self.args)
         self.epoch_num = ceil(self.args.iter_max / self.dataloader.train_iterations)
 
     def main(self):

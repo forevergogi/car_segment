@@ -56,17 +56,17 @@ class Carvana_Dataset(data.Dataset):
         mask_image = Image.open(mask_image_path)
 
         if self.use_hq:
-            gt_image_path = os.path.join(self.image_hq_filepath,'{}.jpg'.format(id))
+            image_path = os.path.join(self.image_hq_filepath,'{}.jpg'.format(id))
         else:
-            gt_image_path = os.path.join(self.image_filepath,'{}.jpg'.format(id))
-        gt_image = Image.open(gt_image_path)
+            image_path = os.path.join(self.image_filepath,'{}.jpg'.format(id))
+        image = Image.open(image_path)
 
         if self.is_training:
-            image, gt_image = self._train_sync_transform(mask_image, gt_image)
+            image, mask_image = self._train_sync_transform(image, mask_image)
         else:
-            image, gt_image = self._val_sync_transform(mask_image, gt_image)
+            image, mask_image = self._val_sync_transform(image, mask_image)
 
-        return mask_image,gt_image,id
+        return image,mask_image,id
 
     def _train_sync_transform(self, img, mask):
         '''
