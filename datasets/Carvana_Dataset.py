@@ -18,7 +18,7 @@ import torchvision.transforms as ttransforms
 
 class Carvana_Dataset(data.Dataset):
     def __init__(self,
-                 datapath='../carvana_data/',
+                 datapath='../../carvana_data/',
                  base_size = 513,
                  crop_size = 513,
                  use_crop = True,
@@ -36,30 +36,32 @@ class Carvana_Dataset(data.Dataset):
         self.crop_size = crop_size
         self.use_crop = use_crop
         self.use_hq = use_hq
+        self.is_training = is_training
 
         self.image_filepath = os.path.join(datapath,'images')
         self.mask_filepath = os.path.join(datapath,'images_mask')
         self.image_hq_filepath = os.path.join(datapath,'images_hq')
+        self.data_path = datapath
 
-        if is_training:
+        if self.is_training:
             item_list_filepath = os.path.join(self.data_path,'train_imgs.txt')
         else:
             item_list_filepath = os.path.join(self.data_path,'test_imgs.txt')
 
         with open(item_list_filepath,'r') as reader:
             lines = reader.readlines()
-            self.items = [id.strip().replace('\n') for id in lines]
+            self.items = [id.strip().replace('\n','') for id in lines]
 
     def __getitem__(self, item):
         id = self.items[item]
-        mask_image_path = os.path.join(self.mask_filepath,'{}.gif'.format(id))
+        mask_image_path = os.path.join(self.mask_filepath,'{}_mask.gif'.format(id))
         mask_image = Image.open(mask_image_path)
 
         if self.use_hq:
             image_path = os.path.join(self.image_hq_filepath,'{}.jpg'.format(id))
         else:
             image_path = os.path.join(self.image_filepath,'{}.jpg'.format(id))
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")
 
         if self.is_training:
             image, mask_image = self._train_sync_transform(image, mask_image)
@@ -146,6 +148,9 @@ class Carvana_Dataset(data.Dataset):
         target = torch.from_numpy(target)
 
         return target
+
+    def __len__(self):
+        return len(self.items)
 
 class CarvanaDataLoader():
     def __init__(self,args):

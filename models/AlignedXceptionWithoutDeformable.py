@@ -187,8 +187,9 @@ class Xception(nn.Module):
 
         # Middle flow
         x = self.block1(x)
-        low_level_features = x
+        # low_level_features = x
         x = self.block2(x)
+        low_level_features = x
         x = self.block3(x)
 
         x = self.block4(x)
@@ -226,7 +227,7 @@ class Xception(nn.Module):
     def _load_xception_weight(self):
         print("Loading pretrained weights in Imagenet...")
         pretrained_dict = model_zoo.load_url(url="http://data.lip6.fr/cadene/pretrainedmodels/xception-b5690688.pth",
-                                             model_dir="/data/linhua/VOCdevkit/")
+                                             model_dir="../../pretrained_models/")
         model_dict = self.state_dict()
         new_dict = {}
 

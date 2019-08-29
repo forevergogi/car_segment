@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
 from models.ResNet101 import resnet101
+from models.AlignedXceptionWithoutDeformable import Xception
 from models.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 
 import sys
@@ -43,7 +44,7 @@ class Decoder(nn.Module):
         low_level_feature = self.conv1(low_level_feature)
         low_level_feature = self.bn1(low_level_feature)
         low_level_feature = self.relu(low_level_feature)
-        x_4 = F.interpolate(x, size=low_level_feature.size()[2:3], mode='bilinear' ,align_corners=True)
+        x_4 = F.interpolate(x, size=low_level_feature.size()[2:4], mode='bilinear' ,align_corners=True)
         x_4_cat = torch.cat((x_4, low_level_feature), dim=1)
         x_4_cat = self.conv2(x_4_cat)
         x_4_cat = self.bn2(x_4_cat)
@@ -68,9 +69,14 @@ class Decoder(nn.Module):
 
 
 class DeepLab(nn.Module):
-    def __init__(self, output_stride, class_num, pretrained, bn_momentum=0.1, freeze_bn=False):
+    def __init__(self, output_stride, class_num, pretrained, bn_momentum=0.1, freeze_bn=False,backbone='resnet101'):
         super(DeepLab, self).__init__()
-        self.Resnet101 = resnet101(bn_momentum, pretrained)
+        if backbone == 'resnet101':
+            self.backbone = resnet101(bn_momentum, pretrained)
+        elif backbone == 'aligned_xception':
+            self.backbone = Xception(output_stride,pretrained)
+        else:
+            raise NotImplementedError('This model is not implemented!')
         self.encoder = Encoder(bn_momentum, output_stride)
         self.decoder = Decoder(class_num, bn_momentum)
         if freeze_bn:
@@ -78,11 +84,11 @@ class DeepLab(nn.Module):
             print("freeze bacth normalization successfully!")
 
     def forward(self, input):
-        x, low_level_features = self.Resnet101(input)
+        x, low_level_features = self.backbone(input)
 
         x = self.encoder(x)
         predict = self.decoder(x, low_level_features)
-        output= F.interpolate(predict, size=input.size()[2:3], mode='bilinear', align_corners=True)
+        output= F.interpolate(predict, size=input.size()[2:4], mode='bilinear', align_corners=True)
         return output
 
     def freeze_bn(self):

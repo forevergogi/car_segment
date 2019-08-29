@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2018/9/26 15:48
+# @Time    : 2018/11/6 10:08
 # @Author  : HLin
 # @Email   : linhua2017@ia.ac.cn
-# @File    : train_voc.py
+# @File    : train_cityscapes.py
 # @Software: PyCharm
 
 import os
@@ -23,7 +23,7 @@ from models.sync_batchnorm.replicate import patch_replication_callback
 from utils.data_utils import calculate_weigths_labels
 from utils.eval import Eval
 from models.decoder import DeepLab
-from datasets.Carvana_Dataset import CarvanaDataLoader
+from datasets.cityscapes_Dataset import City_DataLoader
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -65,7 +65,7 @@ class Trainer():
         else:
             weight = None
 
-        self.loss = nn.CrossEntropyLoss(weight=weight, ignore_index=255)
+        self.loss = nn.CrossEntropyLoss(weight=weight, ignore_index= -1)
         self.loss.to(self.device)
 
         # model
@@ -73,7 +73,8 @@ class Trainer():
                              class_num=self.args.num_classes,
                              pretrained=self.args.imagenet_pretrained and self.args.pretrained_ckpt_file==None,
                              bn_momentum=self.args.bn_momentum,
-                             freeze_bn=self.args.freeze_bn)
+                             freeze_bn=self.args.freeze_bn,
+                             backbone=self.args.backbone)
         self.model = nn.DataParallel(self.model, device_ids=range(ceil(len(self.args.gpu)/2)))
         patch_replication_callback(self.model)
         self.model.to(self.device)
@@ -95,8 +96,8 @@ class Trainer():
             # nesterov=self.args.nesterov
         )
         # dataloader
-        self.dataloader = CarvanaDataLoader(self.args)
-        self.epoch_num = ceil(self.args.iter_max / self.dataloader.train_iterations)
+        self.dataloader = City_DataLoader(self.args)
+        self.epoch_num = ceil(self.args.iter_max / self.dataloader.num_iterations)
 
     def main(self):
         # display args details
@@ -153,7 +154,7 @@ class Trainer():
         torch.save(state, train_id + 'final.pth')
 
     def train_one_epoch(self):
-        tqdm_epoch = tqdm(self.dataloader.train_loader, total=self.dataloader.train_iterations,
+        tqdm_epoch = tqdm(self.dataloader.data_loader, total=self.dataloader.num_iterations,
                           desc="Train Epoch-{}-".format(self.current_epoch+1))
         logger.info("Training one epoch...")
         self.Eval.reset()
@@ -233,11 +234,9 @@ class Trainer():
         logger.info('validating one epoch...')
         self.Eval.reset()
         with torch.no_grad():
-            tqdm_batch = tqdm(self.dataloader.valid_loader, total=self.dataloader.test_iterations,
+            tqdm_batch = tqdm(self.dataloader.val_loader, total=self.dataloader.valid_iterations,
                               desc="Val Epoch-{}-".format(self.current_epoch + 1))
             val_loss = []
-            preds = []
-            lab = []
             self.model.eval()
 
             for x, y, id in tqdm_batch:
@@ -350,19 +349,22 @@ class Trainer():
 
 
 
+
+
+
 if __name__ == '__main__':
     assert LooseVersion(torch.__version__) >= LooseVersion('0.4.0'), 'PyTorch>=0.4.0 is required'
 
     arg_parser = argparse.ArgumentParser()
 
     # Path related arguments
-    arg_parser.add_argument('--data_root_path', type=str, default="../../carvana_data/",
+    arg_parser.add_argument('--data_root_path', type=str, default="../../cityscapes",
                             help="the root path of dataset")
-    arg_parser.add_argument('--checkpoint_dir', default="../checkpoints/carvana/",
+    arg_parser.add_argument('--checkpoint_dir', default="../checkpoints/cityscapes",
                             help="the path of ckpt file")
-    arg_parser.add_argument('--result_filepath', default="../../carvana_data/Results/",
+    arg_parser.add_argument('--result_filepath', default="../../cityscapes/Results/",
                             help="the filepath where mask store")
-    arg_parser.add_argument('--loss_weights_dir', default="./../carvana_data/")
+    arg_parser.add_argument('--loss_weights_dir', default="../../pretrained_models/")
 
     # Model related arguments
     arg_parser.add_argument('--backbone', default='resnet101',
@@ -373,7 +375,7 @@ if __name__ == '__main__':
                             help="batch normalization momentum")
     arg_parser.add_argument('--imagenet_pretrained', type=str2bool, default=True,
                             help="whether apply iamgenet pretrained weights")
-    arg_parser.add_argument('--pretrained_ckpt_file', type=str, default='resnet101_pretrained_cityscapes.pth',
+    arg_parser.add_argument('--pretrained_ckpt_file', type=str, default=None,
                             help="whether apply pretrained checkpoint")
     arg_parser.add_argument('--save_ckpt_file', type=str2bool, default=True,
                             help="whether to save trained checkpoint file ")
@@ -390,16 +392,15 @@ if __name__ == '__main__':
     arg_parser.add_argument('--batch_size_per_gpu', default=4, type=int,
                             help='input batch size')
 
-    arg_parser.add_argument('--use_crop',default=True,help='Whether crop the original image')
-
-    arg_parser.add_argument('--use_hq',default=False,help='Whether use high quality image')
-
     # dataset related arguments
+    arg_parser.add_argument('--dataset', default='cityscapes', type=str,
+                            choices=['voc2012', 'voc2012_aug', 'cityscapes'],
+                            help='dataset choice')
     arg_parser.add_argument('--base_size', default=513, type=int,
                             help='crop size of image')
     arg_parser.add_argument('--crop_size', default=513, type=int,
                             help='base size of image')
-    arg_parser.add_argument('--num_classes', default=2, type=int,
+    arg_parser.add_argument('--num_classes', default=3, type=int,
                             help='num class of mask')
     arg_parser.add_argument('--data_loader_workers', default=16, type=int,
                             help='num_workers of Dataloader')
@@ -408,6 +409,8 @@ if __name__ == '__main__':
     arg_parser.add_argument('--split', type=str, default='train',
                             help="choose from train/val/test/trainval")
 
+    arg_parser.add_argument('--aug', type=bool, default=False,
+                            help="choose from train/val/test/trainval")
     # optimization related arguments
 
     arg_parser.add_argument('--freeze_bn', type=str2bool, default=False,
@@ -420,7 +423,7 @@ if __name__ == '__main__':
 
     arg_parser.add_argument('--lr', type=float, default=0.007,
                             help="init learning rate ")
-    arg_parser.add_argument('--iter_max', type=int, default=10000,
+    arg_parser.add_argument('--iter_max', type=int, default=30000,
                             help="the maxinum of iteration")
     arg_parser.add_argument('--poly_power', type=float, default=0.9,
                             help="poly_power")
@@ -438,6 +441,7 @@ if __name__ == '__main__':
     train_id += '_split-' + str(args.split)
     train_id += '_lr-' + str(args.lr)
     train_id += '_iter_max-' + str(args.iter_max)
+    train_id += '_aug-' + str(args.aug)
 
     # logger configure
     logger = logging.getLogger()

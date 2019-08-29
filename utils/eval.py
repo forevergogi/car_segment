@@ -104,10 +104,15 @@ class Eval_from_filepath():
 
 
 if __name__ == "__main__":
-    gt_image = Image.open('F:/projects/Deeplab v3plus/imgaes/gt/2007_000129.png')
-    pre_image = Image.open('F:/projects/Deeplab v3plus/imgaes/pred/2007_000129.png')
+    image_dir = '/Users/gogi/学习资料/实习/carvana_data'
+    mask_image_path = os.path.join(image_dir,'images_mask/0cdf5b5d0ce1_01_mask.gif')
+    pre_image_path = os.path.join(image_dir,'images/0cdf5b5d0ce1_01.jpg')
+    # gt_image = Image.open('F:/projects/Deeplab v3plus/imgaes/gt/2007_000129.png')
+    # pre_image = Image.open('F:/projects/Deeplab v3plus/imgaes/pred/2007_000129.png')
+    mask_image = Image.open(mask_image_path)
+    pre_image = Image.open(pre_image_path)
 
-    gt_image = np.array(gt_image)
+    gt_image = np.array(mask_image)
     pre_image = np.array(pre_image)
 
     time_start = time.time()
